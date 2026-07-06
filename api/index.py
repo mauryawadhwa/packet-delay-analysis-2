@@ -140,8 +140,8 @@ def analyze_pcap(file_stream, filename):
     # Sort back by timestamp for timeline
     df.sort_values(by='timestamp', inplace=True)
     
-    # Replace NaNs with None for JSON serialization
-    df = df.replace({np.nan: None})
+    # Replace NaNs with None for JSON serialization safely
+    df = df.astype(object).where(pd.notnull(df), None)
     
     # Take up to 1000 packets for the timeline to prevent browser crash
     metrics['packets'] = df.head(1000).to_dict('records')
