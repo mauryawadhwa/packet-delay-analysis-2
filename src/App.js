@@ -8,6 +8,7 @@ import DelayDashboard from './pages/DelayDashboard';
 import DelayCategories from './pages/DelayCategories';
 import Timeline from './pages/Timeline';
 import AdvancedSearch from './pages/AdvancedSearch';
+import { AnalysisProvider } from './context/AnalysisContext';
 
 const theme = createTheme({
   palette: {
@@ -30,17 +31,19 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<FileUpload />} />
-            <Route path="/dashboard" element={<DelayDashboard />} />
-            <Route path="/categories" element={<DelayCategories />} />
-            <Route path="/timeline" element={<Timeline />} />
-            <Route path="/search" element={<AdvancedSearch />} />
-          </Routes>
-        </Layout>
-      </Router>
+      <AnalysisProvider>
+        <Router>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<FileUpload />} />
+              <Route path="/dashboard" element={<DelayDashboard />} />
+              <Route path="/categories" element={<DelayCategories />} />
+              <Route path="/timeline" element={<Timeline />} />
+              <Route path="/search" element={<AdvancedSearch />} />
+            </Routes>
+          </Layout>
+        </Router>
+      </AnalysisProvider>
     </ThemeProvider>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useAnalysis } from '../context/AnalysisContext';
 import {
   Box,
   Grid,
@@ -19,8 +19,15 @@ import {
 
 const DelayCategories = () => {
   const theme = useTheme();
-  const location = useLocation();
-  const analysisData = location.state?.analysisData || {};
+  const { analysisData } = useAnalysis();
+
+  if (!analysisData || Object.keys(analysisData).length === 0) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h5">No data available. Please upload a file first.</Typography>
+      </Box>
+    );
+  }
 
   const delayCategories = [
     {

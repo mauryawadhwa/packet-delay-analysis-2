@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAnalysis } from '../context/AnalysisContext';
 import {
   Box,
   Card,
@@ -27,6 +28,7 @@ import {
 } from '@mui/icons-material';
 
 const AdvancedSearch = () => {
+  const { analysisData } = useAnalysis();
   const [filters, setFilters] = useState({
     protocol: '',
     sourceIp: '',
@@ -72,21 +74,51 @@ const AdvancedSearch = () => {
   };
 
   const handleSearch = () => {
-    // Implement search logic here using activeFilters
-    // This would typically make an API call to the backend
-    const mockResults = [
-      {
-        id: 1,
-        timestamp: new Date().toISOString(),
-        protocol: 'TCP',
-        sourceIp: '192.168.1.1',
-        destinationIp: '192.168.1.2',
-        delay: 150,
-        port: 80,
-      },
-      // Add more mock results...
-    ];
-    setSearchResults(mockResults);
+    if (!analysisData || !analysisData.packets) {
+      setSearchResults([]);
+      return;
+    }
+
+    let results = analysisData.packets;
+
+    activeFilters.forEach(filter => {
+      const value = filter.value.toString().toLowerCase();
+      switch (filter.field) {
+        case 'protocol':
+          results = results.filter(p => p.protocol.toLowerCase() === value);
+          break;
+        case 'sourceIp':
+          results = results.filter(p => p.src_ip.toLowerCase().includes(value));
+          break;
+        case 'destinationIp':
+          results = results.filter(p => p.dst_ip.toLowerCase().includes(value));
+          break;
+        case 'minDelay':
+          results = results.filter(p => p.delay !== null && p.delay >= parseFloat(value));
+          break;
+        case 'maxDelay':
+          results = results.filter(p => p.delay !== null && p.delay <= parseFloat(value));
+          break;
+        case 'port':
+          results = results.filter(p => p.flow_key.includes(`:${value}-`) || p.flow_key.endsWith(`:${value}-TCP`) || p.flow_key.endsWith(`:${value}-UDP`));
+          break;
+        default:
+          break;
+      }
+    });
+
+    setSearchResults(results.map((p, i) => {
+      const ports = p.flow_key.split('-').slice(0, 2).map(part => part.split(':')[1]).join(' / ');
+      return {
+        id: i,
+        timestamp: p.timestamp * 1000,
+        protocol: p.protocol,
+        sourceIp: p.src_ip,
+        destinationIp: p.dst_ip,
+        delay: p.delay !== null ? p.delay.toFixed(4) : '-',
+        port: ports
+      };
+    }));
   };
 
   const renderFilterField = (field, label, type = 'text') => (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useAnalysis } from '../context/AnalysisContext';
 import {
   Box,
   Card,
@@ -30,8 +30,15 @@ import {
 
 const Timeline = () => {
   const theme = useTheme();
-  const location = useLocation();
-  const analysisData = useMemo(() => location.state?.analysisData || {}, [location.state?.analysisData]);
+  const { analysisData } = useAnalysis();
+
+  if (!analysisData || Object.keys(analysisData).length === 0) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h5">No data available. Please upload a file first.</Typography>
+      </Box>
+    );
+  }
   
   const [timeRange, setTimeRange] = useState([0, 100]);
   const [isPlaying, setIsPlaying] = useState(false);

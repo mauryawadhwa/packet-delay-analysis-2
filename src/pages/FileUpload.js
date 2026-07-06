@@ -13,6 +13,7 @@ import {
 import { CloudUpload as UploadIcon } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
+import { useAnalysis } from '../context/AnalysisContext';
 
 const UploadArea = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isDragging'
@@ -31,6 +32,7 @@ const UploadArea = styled(Paper, {
 
 const FileUpload = () => {
   const navigate = useNavigate();
+  const { setAnalysisData } = useAnalysis();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -80,7 +82,8 @@ const FileUpload = () => {
       });
 
       setSummary(response.data);
-      navigate('/dashboard', { state: { analysisData: response.data } });
+      setAnalysisData(response.data);
+      navigate('/dashboard');
     } catch (error) {
       setError(error.response?.data?.error || 'Error uploading file');
     } finally {
@@ -140,7 +143,7 @@ const FileUpload = () => {
                     <Typography>{summary.total_packets}</Typography>
                   </Grid>
                   <Grid item xs={12} sm={4}>
-                    <Typography variant="subtitle2">Average Latency</Typography>
+                    <Typography variant="subtitle2">Average IPG (Inter-Packet Gap)</Typography>
                     <Typography>{summary.latency?.mean ? summary.latency.mean.toFixed(2) : 0} ms</Typography>
                   </Grid>
                   <Grid item xs={12} sm={4}>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useAnalysis } from '../context/AnalysisContext';
 import {
   Box,
   Grid,
@@ -23,8 +23,15 @@ import {
 
 const DelayDashboard = () => {
   const theme = useTheme();
-  const location = useLocation();
-  const analysisData = location.state?.analysisData || {};
+  const { analysisData } = useAnalysis();
+
+  if (!analysisData || Object.keys(analysisData).length === 0) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h5">No data available. Please upload a file first.</Typography>
+      </Box>
+    );
+  }
 
   const formatDelayData = (data) => {
     // Check if we have latency data in the expected format
@@ -69,7 +76,7 @@ const DelayDashboard = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Average Latency
+                Average IPG (Inter-Packet Gap)
               </Typography>
               <Typography variant="h3">
                 {analysisData.latency?.mean ? analysisData.latency.mean.toFixed(4) : 0} ms
