@@ -72,7 +72,7 @@ const DelayDashboard = () => {
                 Average Latency
               </Typography>
               <Typography variant="h3">
-                {analysisData.latency?.mean ? analysisData.latency.mean.toFixed(4) : 0} s
+                {analysisData.latency?.mean ? analysisData.latency.mean.toFixed(4) : 0} ms
               </Typography>
             </CardContent>
           </Card>
@@ -85,7 +85,7 @@ const DelayDashboard = () => {
                 Average Jitter
               </Typography>
               <Typography variant="h3">
-                {analysisData.jitter?.mean ? analysisData.jitter.mean.toFixed(4) : 0} s
+                {analysisData.jitter?.mean ? analysisData.jitter.mean.toFixed(4) : 0} ms
               </Typography>
             </CardContent>
           </Card>

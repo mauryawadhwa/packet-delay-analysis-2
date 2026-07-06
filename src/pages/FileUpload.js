@@ -141,7 +141,7 @@ const FileUpload = () => {
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <Typography variant="subtitle2">Average Latency</Typography>
-                    <Typography>{summary.latency?.mean ? summary.latency.mean.toFixed(2) : 0} s</Typography>
+                    <Typography>{summary.latency?.mean ? summary.latency.mean.toFixed(2) : 0} ms</Typography>
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <Typography variant="subtitle2">Unique IPs</Typography>
