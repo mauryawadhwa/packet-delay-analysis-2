@@ -38,7 +38,7 @@ def extract_ip_data(buf, datalink):
             ip_data = eth.data
             
             # Unwrap VLAN tags
-            while isinstance(ip_data, dpkt.ethernet.VLAN8021Q):
+            while getattr(ip_data, '__class__', None) and 'VLAN' in ip_data.__class__.__name__:
                 ip_data = ip_data.data
                 
         if isinstance(ip_data, dpkt.ip.IP) or isinstance(ip_data, dpkt.ip6.IP6):
