@@ -32,14 +32,6 @@ const Timeline = () => {
   const theme = useTheme();
   const { analysisData } = useAnalysis();
 
-  if (!analysisData || Object.keys(analysisData).length === 0) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography variant="h5">No data available. Please upload a file first.</Typography>
-      </Box>
-    );
-  }
-  
   const [timeRange, setTimeRange] = useState([0, 100]);
   const [isPlaying, setIsPlaying] = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -97,6 +89,14 @@ const Timeline = () => {
     }
     return null;
   };
+
+  if (!analysisData || Object.keys(analysisData).length === 0) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h5">No data available. Please upload a file first.</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
