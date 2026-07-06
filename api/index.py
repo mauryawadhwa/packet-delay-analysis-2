@@ -23,42 +23,65 @@ def inet_to_str(inet):
         return socket.inet_ntop(socket.AF_INET6, inet)
 
 def extract_ip_data(buf, datalink):
+    # Helper to attempt unnesting VLANs and validating IP
+    def validate_and_unwrap(data):
+        while getattr(data, '__class__', None) and 'VLAN' in data.__class__.__name__:
+            data = data.data
+        if isinstance(data, dpkt.ip.IP) or isinstance(data, dpkt.ip6.IP6):
+            return data
+        return None
+
     try:
-        # Handle Linux cooked capture
         if datalink == 113: # DLT_LINUX_SLL
             sll = dpkt.sll.SLL(buf)
-            ip_data = sll.data
-        # Handle Loopback
+            return validate_and_unwrap(sll.data)
         elif datalink == 0: # DLT_NULL
             loop = dpkt.loopback.Loopback(buf)
-            ip_data = loop.data
-        else:
-            # Default Ethernet
+            return validate_and_unwrap(loop.data)
+        elif datalink is not None:
+            # Assume Ethernet for standard DLT_EN10MB (1) or others
             eth = dpkt.ethernet.Ethernet(buf)
-            ip_data = eth.data
+            return validate_and_unwrap(eth.data)
+        else:
+            # If datalink is unknown (pcapng), brute force guess
+            try:
+                eth = dpkt.ethernet.Ethernet(buf)
+                ip = validate_and_unwrap(eth.data)
+                if ip: return ip
+            except Exception:
+                pass
             
-            # Unwrap VLAN tags
-            while getattr(ip_data, '__class__', None) and 'VLAN' in ip_data.__class__.__name__:
-                ip_data = ip_data.data
+            try:
+                sll = dpkt.sll.SLL(buf)
+                ip = validate_and_unwrap(sll.data)
+                if ip: return ip
+            except Exception:
+                pass
                 
-        if isinstance(ip_data, dpkt.ip.IP) or isinstance(ip_data, dpkt.ip6.IP6):
-            return ip_data
+            try:
+                loop = dpkt.loopback.Loopback(buf)
+                ip = validate_and_unwrap(loop.data)
+                if ip: return ip
+            except Exception:
+                pass
     except Exception:
         pass
+    
     return None
 
 def analyze_pcap(file_stream, filename):
-    file_stream.seek(0)
+    # Read fully into memory buffer for Serverless environment safety
+    file_bytes = file_stream.read()
+    mem_stream = io.BytesIO(file_bytes)
+    
     datalink = None
     try:
-        # Try as standard pcap first, regardless of extension
-        pcap = dpkt.pcap.Reader(file_stream)
+        pcap = dpkt.pcap.Reader(mem_stream)
         datalink = pcap.datalink()
     except Exception:
         try:
-            # Fallback to pcapng
-            file_stream.seek(0)
-            pcap = dpkt.pcapng.Reader(file_stream)
+            mem_stream.seek(0)
+            pcap = dpkt.pcapng.Reader(mem_stream)
         except Exception as e:
             raise Exception(f"Failed to parse pcap file: {str(e)}")
 
@@ -69,16 +92,31 @@ def analyze_pcap(file_stream, filename):
             ip = extract_ip_data(buf, datalink)
             if not ip:
                 continue
+                
             src_ip = inet_to_str(ip.src)
             dst_ip = inet_to_str(ip.dst)
             
-            # Identify protocol
+            # Identify protocol and extract ports
             proto = "Unknown"
-            if ip.p == dpkt.ip.IP_PROTO_TCP:
+            sport = 0
+            dport = 0
+            
+            if hasattr(ip, 'p'):
+                proto_num = ip.p
+            else:
+                proto_num = getattr(ip, 'nxt', 0)
+                
+            if proto_num == dpkt.ip.IP_PROTO_TCP:
                 proto = "TCP"
-            elif ip.p == dpkt.ip.IP_PROTO_UDP:
+                if hasattr(ip, 'data') and hasattr(ip.data, 'sport'):
+                    sport = ip.data.sport
+                    dport = ip.data.dport
+            elif proto_num == dpkt.ip.IP_PROTO_UDP:
                 proto = "UDP"
-            elif ip.p == dpkt.ip.IP_PROTO_ICMP:
+                if hasattr(ip, 'data') and hasattr(ip.data, 'sport'):
+                    sport = ip.data.sport
+                    dport = ip.data.dport
+            elif proto_num == dpkt.ip.IP_PROTO_ICMP:
                 proto = "ICMP"
             
             packets_data.append({
@@ -87,10 +125,10 @@ def analyze_pcap(file_stream, filename):
                 'src_ip': src_ip,
                 'dst_ip': dst_ip,
                 'length': len(buf),
-                'flow_key': f"{src_ip}-{dst_ip}-{proto}" # simplified flow key
+                'flow_key': f"{src_ip}:{sport}-{dst_ip}:{dport}-{proto}"
             })
         except Exception:
-            pass # Ignore malformed packets
+            pass 
 
     if not packets_data:
         return {'error': 'No IP packets found in the capture file'}
@@ -108,7 +146,7 @@ def analyze_pcap(file_stream, filename):
     
     # Calculate delays per flow
     df.sort_values(by=['flow_key', 'timestamp'], inplace=True)
-    df['delay'] = df.groupby('flow_key')['timestamp'].diff()
+    df['delay'] = df.groupby('flow_key')['timestamp'].diff() * 1000 # To ms
     
     # Jitter is absolute difference of delays within the same flow
     df['jitter'] = df.groupby('flow_key')['delay'].diff().abs()
@@ -159,7 +197,6 @@ def upload_file():
     
     if file and allowed_file(file.filename):
         try:
-            # Pass the file stream directly to avoid saving to disk
             analysis_results = analyze_pcap(file, file.filename)
             if 'error' in analysis_results:
                 return jsonify(analysis_results), 400
