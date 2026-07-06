@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Box,
@@ -31,7 +31,7 @@ import {
 const Timeline = () => {
   const theme = useTheme();
   const location = useLocation();
-  const analysisData = location.state?.analysisData || {};
+  const analysisData = useMemo(() => location.state?.analysisData || {}, [location.state?.analysisData]);
   
   const [timeRange, setTimeRange] = useState([0, 100]);
   const [isPlaying, setIsPlaying] = useState(false);
