@@ -22,25 +22,53 @@ def inet_to_str(inet):
     except ValueError:
         return socket.inet_ntop(socket.AF_INET6, inet)
 
-def analyze_pcap(file_stream, filename):
+def extract_ip_data(buf, datalink):
     try:
-        if filename.endswith('.pcapng'):
-            pcap = dpkt.pcapng.Reader(file_stream)
+        # Handle Linux cooked capture
+        if datalink == 113: # DLT_LINUX_SLL
+            sll = dpkt.sll.SLL(buf)
+            ip_data = sll.data
+        # Handle Loopback
+        elif datalink == 0: # DLT_NULL
+            loop = dpkt.loopback.Loopback(buf)
+            ip_data = loop.data
         else:
-            pcap = dpkt.pcap.Reader(file_stream)
-    except Exception as e:
-        raise Exception(f"Failed to parse pcap file: {str(e)}")
+            # Default Ethernet
+            eth = dpkt.ethernet.Ethernet(buf)
+            ip_data = eth.data
+            
+            # Unwrap VLAN tags
+            while isinstance(ip_data, dpkt.ethernet.VLAN8021Q):
+                ip_data = ip_data.data
+                
+        if isinstance(ip_data, dpkt.ip.IP) or isinstance(ip_data, dpkt.ip6.IP6):
+            return ip_data
+    except Exception:
+        pass
+    return None
+
+def analyze_pcap(file_stream, filename):
+    file_stream.seek(0)
+    datalink = None
+    try:
+        # Try as standard pcap first, regardless of extension
+        pcap = dpkt.pcap.Reader(file_stream)
+        datalink = pcap.datalink()
+    except Exception:
+        try:
+            # Fallback to pcapng
+            file_stream.seek(0)
+            pcap = dpkt.pcapng.Reader(file_stream)
+        except Exception as e:
+            raise Exception(f"Failed to parse pcap file: {str(e)}")
 
     packets_data = []
     
     for ts, buf in pcap:
         try:
-            eth = dpkt.ethernet.Ethernet(buf)
-            # Make sure it's IP
-            if not isinstance(eth.data, dpkt.ip.IP) and not isinstance(eth.data, dpkt.ip6.IP6):
+            ip = extract_ip_data(buf, datalink)
+            if not ip:
                 continue
-            
-            ip = eth.data
             src_ip = inet_to_str(ip.src)
             dst_ip = inet_to_str(ip.dst)
             
